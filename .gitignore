@@ -4,3 +4,4 @@ __pycache__
 ## big files
 *.h5seurat
 *.h5ad
+*.pt
