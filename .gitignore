@@ -5,3 +5,5 @@ __pycache__
 *.h5seurat
 *.h5ad
 *.pt
+## other
+build_up
