@@ -1,20 +1,22 @@
 from .CAST_Mark import *
 from .CAST_Stack import *
 from .CAST_Projection import *
+from .utils import *
+from .visualize import *
 from .models.model_GCNII import Args, CCA_SSG
 
-def CAST_MARK(coords_raw_t,exp_dict_t,output_path_t,task_name_t = None,gpu_t = None,args = None,epoch_t = None, if_plot = True):
+def CAST_MARK(coords_raw_t,exp_dict_t,output_path_t,task_name_t = None,gpu_t = None,args = None,epoch_t = None, if_plot = True, graph_strategy = 'convex'):
     ### setting
     gpu_t = 0 if torch.cuda.is_available() and gpu_t is None else -1
     device = 'cuda:0' if gpu_t == 0 else 'cpu'
     samples = list(exp_dict_t.keys())
-    task_name_t = task_name_t if task_name_t is not None else 'taks1'
+    task_name_t = task_name_t if task_name_t is not None else 'task1'
     inputs = []
 
     ### construct delaunay graphs and input data
     print(f'Constructing delaunay graphs for {len(samples)} samples...')
     for sample_t in samples:
-        graph_dgl_t = delaunay_dgl(sample_t,coords_raw_t[sample_t],output_path_t,if_plot=if_plot).to(device)
+        graph_dgl_t = delaunay_dgl(sample_t,coords_raw_t[sample_t],output_path_t,if_plot=if_plot,strategy_t = graph_strategy).to(device)
         feat_torch_t = torch.tensor(exp_dict_t[sample_t], dtype=torch.float32, device=device)
         inputs.append((sample_t, graph_dgl_t, feat_torch_t))
     
@@ -99,7 +101,7 @@ def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tm
     coords_ref = torch.Tensor(coords_minus_mean(coords_raw[ref_sample])).to(params_dist.device)
 
     ### Pre-location
-    theta_r1_t = prelocate(coords_query,coords_ref,max_minus_value_t(corr_q_r),params_dist.bleeding,output_path,d_list=params_dist.d_list,prefix = prefix_t,index_list=list(sub_node_idxs.values()))
+    theta_r1_t = prelocate(coords_query,coords_ref,max_minus_value_t(corr_q_r),params_dist.bleeding,output_path,d_list=params_dist.d_list,prefix = prefix_t,index_list=list(sub_node_idxs.values()),translation_params = params_dist.translation_params)
     params_dist.theta_r1 = theta_r1_t
     coords_query_r1 = affine_trans_t(params_dist.theta_r1,coords_query)
     plot_mid(coords_query_r1.cpu(),coords_ref.cpu(),output_path,prefix_t + '_prelocation') if mid_visual else None ### consistent scale with ref coords
@@ -174,6 +176,7 @@ def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tm
     coords_final[ref_sample] = coords_raw[ref_sample]
     plot_mid(coords_q_final.cpu(),coords_final[ref_sample],output_path,f'{prefix_t}_align')
     torch.save(coords_final,os.path.join(output_path,f'{prefix_t}_coords_final.data'))
+    return coords_final
 
 def CAST_PROJECT(
     sdata_inte, # the integrated dataset

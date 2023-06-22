@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import seaborn as sns
 from dataclasses import dataclass, field
-from .visualize import kmeans_plot_multiple, add_scale_bar
-# from mapping_utils import *
+from .visualize import add_scale_bar
 
 #################### Registration ####################
 # Parameters class
@@ -18,6 +17,7 @@ class reg_params:
     theta_r1 : float = 0
     theta_r2 : float = 0
     d_list : list[float] = field(default_factory=list)
+    translation_params : list[float] = None
     alpha_basis : list[float] = field(default_factory=list)
     iterations : int = 50
     dist_penalty1 : float = 0
@@ -42,6 +42,7 @@ class reg_params:
     mean_r : float = 0
     gpu: int = 0
     device : str = field(init=False)
+    
 
     def __post_init__(self):
         if self.gpu != -1 and torch.cuda.is_available():
@@ -49,20 +50,37 @@ class reg_params:
         else:
             self.device = 'cpu'
 
-def prelocate(coords_q,coords_r,cov_anchor_it,bleeding,output_path,d_list=[1,2,3],prefix = 'test',ifplot = True,index_list = None):
+def get_range(sp_coords):
+    yrng = max(sp_coords, key=lambda x:x[1])[1] - min(sp_coords, key=lambda x:x[1])[1]
+    xrng = max(sp_coords, key=lambda x:x[0])[0] - min(sp_coords, key=lambda x:x[0])[0]
+    return xrng, yrng
+
+def prelocate(coords_q,coords_r,cov_anchor_it,bleeding,output_path,d_list=[1,2,3],prefix = 'test',ifplot = True,index_list = None,translation_params = None):
     idx_q = np.ones(coords_q.shape[0],dtype=bool) if index_list is None else index_list[0]
     idx_r = np.ones(coords_r.shape[0],dtype=bool) if index_list is None else index_list[1]
     theta_t = []
     J_t = []
+    if translation_params is None:
+        translation_x = [0]
+        translation_y = [0]
+    else:
+        xrng, yrng = get_range(coords_r.detach().cpu())
+        dx_ratio_max, dy_ratio_max, xy_steps = translation_params
+        dx_max = dx_ratio_max * xrng
+        dy_max = dy_ratio_max * yrng
+        translation_x = np.linspace(-dx_max, dx_max, num=int(xy_steps)) # dx
+        translation_y = np.linspace(-dy_max, dy_max, num=int(xy_steps)) # dy
     for mirror in [1,-1]:
-        for d in d_list:
-            for phi in [0,90,180,270]:
-                a = d
-                d = d * mirror
-                theta = torch.Tensor([a,d,phi,0,0]).reshape(5,1).to(coords_q.device)
-                coords_query_it = affine_trans_t(theta,coords_q)
-                theta_t.append(theta)
-                J_t.append(J_cal(coords_query_it[idx_q],coords_r[idx_r],cov_anchor_it,bleeding).sum().item())
+        for dx in translation_x:
+            for dy in translation_y:
+                for d in d_list:
+                    for phi in [0,90,180,270]:
+                        a = d
+                        d = d * mirror
+                        theta = torch.Tensor([a,d,phi,dx,dy]).reshape(5,1).to(coords_q.device)
+                        coords_query_it = affine_trans_t(theta,coords_q)
+                        theta_t.append(theta)
+                        J_t.append(J_cal(coords_query_it[idx_q],coords_r[idx_r],cov_anchor_it,bleeding).sum().item())
     if ifplot:
         prelocate_loss_plot(J_t,output_path,prefix)
     return(theta_t[np.argmin(J_t)])
@@ -574,90 +592,3 @@ def region_detect(embed_dict_t,coords0,k = 20):
         plt.title(str(i),fontsize=20)
         plt.axis('equal')
     return cell_label
-
-
-
-#################### old code ####################
-
-# def dJ_dtheta_cal(xi,yi,dJ_dxy_mat,theta,dev):
-#     #dxy_da:
-#     #{x * cos(rad_phi), x * sin(rad_phi)}
-#     #dxy_dd:
-#     #{-y * sin(rad_phi), y * cos(rad_phi)}
-#     #dxy_dphi:
-#     #{-d * y * cos(rad_phi) - a * x * sin(rad_phi), a * x * cos(rad_phi) - d * y * sin(rad_phi)}
-#     #dxy_dt1:
-#     #{1, 0}
-#     #dxy_dt2:
-#     #{0, 1}
-#     N = xi.shape[0]
-#     rad_phi = theta[2,0].deg2rad()
-#     cos_rad_phi = rad_phi.cos()
-#     sin_rad_phi = rad_phi.sin()
-#     dxy_dtheta = torch.stack([torch.stack([xi * cos_rad_phi,
-#                                 -yi* sin_rad_phi,
-#                                 -theta[1] * cos_rad_phi * yi - theta[0] * xi * sin_rad_phi,
-#                                 torch.Tensor([1] * N).to(dev),
-#                                 torch.Tensor([0] * N).to(dev)]),
-#                                 torch.stack([xi * sin_rad_phi,
-#                                 yi * cos_rad_phi,
-#                                 theta[0] * xi * cos_rad_phi - theta[1] * yi * sin_rad_phi,
-#                                 torch.Tensor([0] * N).to(dev),
-#                                 torch.Tensor([1] * N).to(dev)])])
-
-#     dxy_dtheta = dxy_dtheta.transpose(0,1) # [dx_{i}/dtheta_{k},dy_{i}/dtheta_{k}] (5 * 2 * N)
-#     dJ_dtheta = torch.stack([torch.matmul(dxy_dtheta[:,:,i],dJ_dxy_mat[:,i]) for i in range(0,N)]).T # [dJ_{i}/dtheta_{k}] (5 * N)
-#     dJ_dtheta = dJ_dtheta.sum(1)
-#     return dJ_dtheta
-
-
-# def dict_preparation():
-#     dict_t= {}
-#     row_t = 0
-#     for i in range(4):
-#         for j in range(4):
-#             idx_t = '['+str(i) + ' '+str(j)+']'
-#             dict_t[idx_t] = row_t
-#             row_t += 1
-#     return dict_t
-
-
-# def add_scale_bar(length_t,label_t):
-#     import matplotlib.font_manager as fm
-#     from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
-#     fontprops = fm.FontProperties(size=20, family='Arial')
-#     bar = AnchoredSizeBar(plt.gca().transData, length_t, label_t, 4, pad=0.1,
-#                         sep=5, borderpad=0.5, frameon=False,
-#                         size_vertical=0.1, color='black',fontproperties = fontprops)
-#     plt.gca().add_artist(bar)
-
-# def kmeans_plot_multiple(embed_dict_t,graph_list,coords,taskname_t,output_path_t,k=20,dot_size = 10,scale_bar_t = None):
-#     num_plot = len(embed_dict_t)
-#     plot_row = int(np.floor(num_plot/2) + 1)
-#     embed_stack = embed_dict_t[graph_list[0]].cpu().detach().numpy()
-#     for i in range(1,num_plot):
-#         embed_stack = np.row_stack((embed_stack,embed_dict_t[graph_list[i]].cpu().detach().numpy()))
-#     kmeans = KMeans(n_clusters=k,random_state=0).fit(embed_stack)
-#     cell_label = kmeans.labels_
-#     cluster_pl = sns.color_palette('tab20',len(np.unique(cell_label)))
-#     plt.figure(figsize=((20,10 * plot_row)))
-#     cell_label_idx = 0
-#     for j in range(num_plot):
-#         plt.subplot(plot_row,2,j+1)
-#         coords0 = coords[graph_list[j]]
-#         col=coords0[:,0].tolist()
-#         row=coords0[:,1].tolist()
-#         cell_type_t = cell_label[cell_label_idx:(cell_label_idx + coords0.shape[0])]
-#         cell_label_idx += coords0.shape[0]
-#         for i in set(cell_type_t):
-#             plt.scatter(np.array(col)[cell_type_t == i],
-#             np.array(row)[cell_type_t == i], s=dot_size,edgecolors='none',
-#             c=np.array(cluster_pl)[cell_type_t[cell_type_t == i]],label = str(i), rasterized=True)
-#         plt.title(graph_list[j] + ' (KMeans, k = ' + str(k) + ')',fontsize=20)
-#         plt.xticks(fontsize=20)
-#         plt.yticks(fontsize=20)
-#         plt.axis('equal')
-#         if (type(scale_bar_t) != type(None)):
-#             add_scale_bar(scale_bar_t[0],scale_bar_t[1])
-#     plt.savefig(f'{output_path_t}/{taskname_t}_trained_k{str(k)}.pdf',dpi = 300)
-#     return cell_label

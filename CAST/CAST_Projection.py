@@ -10,41 +10,6 @@ import scanpy as sc
 from scipy.sparse import csr_matrix as csr
 from .utils import coords2adjacentmat
 
-def Harmony_integration(
-    sdata_inte,
-    scaled_layer,
-    use_highly_variable_t,
-    batch_key,
-    umap_n_neighbors,
-    umap_n_pcs,
-    min_dist,
-    spread_t,
-    source_sample_ctype_col,
-    output_path,
-    n_components = 50,
-    ifplot = True,
-    ifcombat = False):
-    #### integration based on the Harmony
-    sdata_inte.X = sdata_inte.layers[scaled_layer].copy()
-    if ifcombat == True:
-        sc.pp.combat(sdata_inte, key=batch_key)
-    print(f'Running PCA based on the layer {scaled_layer}:')
-    sc.tl.pca(sdata_inte, use_highly_variable=use_highly_variable_t, svd_solver = 'full', n_comps= n_components)
-    print(f'Running Harmony integration:')
-    sc.external.pp.harmony_integrate(sdata_inte, batch_key)
-    print(f'Compute a neighborhood graph based on the {umap_n_neighbors} `n_neighbors`, {umap_n_pcs} `n_pcs`:')
-    sc.pp.neighbors(sdata_inte, n_neighbors=umap_n_neighbors, n_pcs=umap_n_pcs, use_rep='X_pca_harmony')
-    print(f'Generate the UMAP based on the {min_dist} `min_dist`, {spread_t} `spread`:')
-    sc.tl.umap(sdata_inte,min_dist=min_dist, spread = spread_t)
-    sdata_inte.obsm['har_X_umap'] = sdata_inte.obsm['X_umap'].copy()
-    if ifplot == True:
-        plt.rcParams.update({'pdf.fonttype':42})
-        sc.settings.figdir = output_path
-        sc.set_figure_params(figsize=(10, 10),facecolor='white',vector_friendly=True, dpi_save=300,fontsize = 25)
-        sc.pl.umap(sdata_inte,color=[batch_key],size=10,save=f'_har_{umap_n_pcs}pcs_batch.pdf')
-        sc.pl.umap(sdata_inte,color=[source_sample_ctype_col],size=10,save=f'_har_{umap_n_pcs}pcs_ctype.pdf') if source_sample_ctype_col is not None else None
-    return sdata_inte
-
 def space_project(
     sdata_inte,
     idx_source,
@@ -264,7 +229,8 @@ def evaluation_project(
     cdists = None,
     batch_t = '',
     exclude_group = 'Other',
-    color_dict = None):
+    color_dict = None,
+    umap_examples = False):
     print(f'Generate evaluation plots:')
     plt.rcParams.update({'pdf.fonttype':42, 'font.size' : 15})
     plt.rcParams['axes.grid'] = False
@@ -302,8 +268,9 @@ def evaluation_project(
     plt.savefig(f'{output_path}/link_plot{batch_t}.pdf', dpi=300)
 
     ### Umap ###
-    cdist_check(cdists.copy(),project_ind.copy(),umap_target,umap_source,labels_t=[target_sample,source_sample],random_seed_t=0,figsize_t=[40,32])
-    plt.savefig(f'{output_path}/umap_examples{batch_t}.pdf',dpi = 300)
+    if umap_examples:
+        cdist_check(cdists.copy(),project_ind.copy(),umap_target,umap_source,labels_t=[target_sample,source_sample],random_seed_t=0,figsize_t=[40,32])
+        plt.savefig(f'{output_path}/umap_examples{batch_t}.pdf',dpi = 300)
 
 #################### Visualization ####################
 
@@ -428,107 +395,3 @@ def link_plot_3d(assign_mat, coords_target, coords_source, k, figsize_t = [15,20
     ax.xaxis.pane.fill = False
     ax.yaxis.pane.fill = False
     ax.zaxis.pane.fill = False
-
-#################### old code ####################
-
-# def coords2adjacentmat(coords,output_mode = 'adjacent',strategy_t = 'convex'):
-#     if strategy_t == 'convex':
-#         cells, _ = voronoi_frames(coords, clip="convex hull")
-#         delaunay_graph = weights.Rook.from_dataframe(cells).to_networkx()
-#     elif strategy_t == 'delaunay':
-#         from scipy.spatial import Delaunay
-#         # Assuming coords is your list/array of 2D points
-#         tri = Delaunay(coords)
-#         delaunay_graph = nx.Graph()
-#         for simplex in tri.simplices:
-#             for i in range(3):
-#                 if not delaunay_graph.has_edge(simplex[i], simplex[(i+1)%3]):
-#                     delaunay_graph.add_edge(simplex[i], simplex[(i+1)%3])
-#     if output_mode == 'adjacent':
-#         return nx.to_scipy_sparse_array(delaunay_graph).todense()
-#     elif output_mode == 'raw':
-#         return delaunay_graph
-#     elif output_mode == 'adjacent_sparse':
-#         return nx.to_scipy_sparse_array(delaunay_graph)
-
-# def CAST_PROJECT(
-#     sdata_inte, # the integrated dataset
-#     source_sample, # the source sample name
-#     target_sample, # the target sample name
-#     coords_source, # the coordinates of the source sample
-#     coords_target, # the coordinates of the target sample
-#     scaled_layer = 'log2_norm1e4_scaled', # the scaled layer name in `adata.layers`, which is used to be integrated
-#     raw_layer = 'raw', # the raw layer name in `adata.layers`, which is used to be projected into target sample
-#     batch_key = 'protocol', # the column name of the samples in `obs`
-#     use_highly_variable_t = True, # if use highly variable genes
-#     ifplot = True, # if plot the result
-#     n_components = 50, # the `n_components` parameter in `sc.pp.pca`
-#     umap_n_neighbors = 50, # the `n_neighbors` parameter in `sc.pp.neighbors`
-#     umap_n_pcs = 30, # the `n_pcs` parameter in `sc.pp.neighbors`
-#     min_dist = 0.01, # the `min_dist` parameter in `sc.tl.umap`
-#     spread_t = 5, # the `spread` parameter in `sc.tl.umap`
-#     k2 = 1, # select k2 cells to do the projection for each cell
-#     source_sample_ctype_col = 'level_2', # the column name of the cell type in `obs`
-#     output_path = '', # the output path
-#     umap_feature = 'X_umap', # the feature used for umap
-#     pc_feature = 'X_pca_harmony', # the feature used for the projection
-#     integration_strategy = 'Harmony', # 'Harmony' or None (use existing integrated features)
-#     ave_dist_fold = 3, # the `ave_dist_fold` is used to set the distance threshold (average_distance * `ave_dist_fold`)
-#     save_result = True, # if save the results
-#     ifcombat = True, # if use combat when using the Harmony integration
-#     alignment_shift_adjustment = 50, # to adjust the small alignment shift for the distance threshold)
-#     color_dict = None, # the color dict for the cell type
-#     working_memory_t = 1000 # the working memory for the pairwise distance calculation
-#     ):
-
-#     #### integration
-#     if integration_strategy == 'Harmony':
-#         sdata_inte = Harmony_integration(
-#             sdata_inte = sdata_inte,
-#             scaled_layer = scaled_layer,
-#             use_highly_variable_t = use_highly_variable_t,
-#             batch_key = batch_key,
-#             umap_n_neighbors = umap_n_neighbors,
-#             umap_n_pcs = umap_n_pcs,
-#             min_dist = min_dist,
-#             spread_t = spread_t,
-#             source_sample_ctype_col = source_sample_ctype_col,
-#             output_path = output_path,
-#             n_components = n_components,
-#             ifplot = True,
-#             ifcombat = ifcombat)
-#     elif integration_strategy is None:
-#         print(f'Using the pre-integrated data {pc_feature} and the UMAP {umap_feature}')
-
-#     #### Projection
-#     idx_source = sdata_inte.obs[batch_key] == source_sample
-#     idx_target = sdata_inte.obs[batch_key] == target_sample
-#     source_cell_pc_feature = sdata_inte[idx_source, :].obsm[pc_feature]
-#     target_cell_pc_feature = sdata_inte[idx_target, :].obsm[pc_feature]
-#     sdata_ref,output_list = space_project(
-#         sdata_inte = sdata_inte,
-#         idx_source = idx_source,
-#         idx_target = idx_target,
-#         raw_layer = raw_layer,
-#         source_sample = source_sample,
-#         target_sample = target_sample,
-#         coords_source = coords_source,
-#         coords_target = coords_target,
-#         output_path = output_path,
-#         source_sample_ctype_col = source_sample_ctype_col,
-#         target_cell_pc_feature = target_cell_pc_feature,
-#         source_cell_pc_feature = source_cell_pc_feature,
-#         k2 = k2,
-#         ifplot = ifplot,
-#         umap_feature = umap_feature,
-#         ave_dist_fold = ave_dist_fold,
-#         alignment_shift_adjustment = alignment_shift_adjustment,
-#         color_dict = color_dict,
-#         working_memory_t = working_memory_t
-#         )
-
-#     ### Save the results
-#     if save_result == True:
-#         sdata_ref.write_h5ad(f'{output_path}/sdata_ref.h5ad')
-#         torch.save(output_list,f'{output_path}/projection_data.pt')
-#     return sdata_ref,output_list
