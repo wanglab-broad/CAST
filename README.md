@@ -19,7 +19,7 @@ conda activate cast_demo
 
 Users could use `nvcc --version` to check the CUDA version for installation.
 
-Here we provide with a example of the CUDA 11.3 installation code.
+Here we provide with an example of the CUDA 11.3 installation code.
 ```
 #### If CPU only ####
 conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cpuonly -c pytorch
