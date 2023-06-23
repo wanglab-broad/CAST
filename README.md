@@ -37,7 +37,9 @@ If `git` is available:
 pip install git+ssh://git@github.com/tangzefang/CAST_dev_zefang.git
 ```
 If `git` is unavailable:
+
 a. Download the package and unpack it
+
 b. run the code:
 ```
 cd $package
