@@ -1,8 +1,5 @@
 # Installation Guide
 ## Installation
-Users should install the following packages prior to use the CAST package.
-
-The environment requires 2-5 minutes to deploy acorrding to the Internet speed.
 
 If users are using the Windows system, please directly use the `Anaconda powershell` to run following code.
 
@@ -14,6 +11,7 @@ conda create -y -n cast_demo python=3.9
 conda activate cast_demo
 ```
 2. [Optional] CAST requires `pytorch` and `dgl`
+
 [Install Pytorch](https://pytorch.org/get-started/locally/)
 
 [Install DGL](https://www.dgl.ai/pages/start.html)
