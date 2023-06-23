@@ -37,9 +37,9 @@ pip install git+ssh://git@github.com/tangzefang/CAST_dev_zefang.git
 ```
 If `git` is unavailable:
 
-a. Download the package and unpack it
+1. Download the package and unpack it
 
-b. run the code:
+2. run the code:
 ```
 cd $package
 pip install -e .
