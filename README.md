@@ -50,10 +50,12 @@ We provide with several demos to demonstrate the functions in CAST package.
 
 Users can use following code to open the `Jupyter notebook` (We recommend to use `Chrome` to open the jupyter notebook).
 ```
-cd $demo
+cd $demo_path
 jupyter notebook
+
 #### If remote kernel ####
 jupyter notebook --ip=0.0.0.0 --port=8800
+
 #### If dead kernel ####
 jupyter notebook --NotebookApp.max_buffer_size=21474836480
 ```
