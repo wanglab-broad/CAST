@@ -2,7 +2,7 @@
 
 For Windows system, we suggest to use the `Anaconda powershell` to run following code.
 
-### Requirements
+## Requirements
 
 - **[Optional]** It is recommended to create a conda environment for CAST.
 
@@ -30,7 +30,7 @@ conda install -y -c pytorch pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11
 conda install -y -c dglteam dgl-cuda11.3==0.9.1
 ```
 
-### CAST installation
+## Installation
 If `git` is available:
 ```
 pip install git+ssh://git@github.com/tangzefang/CAST_dev_zefang.git
