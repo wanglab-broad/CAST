@@ -1,5 +1,4 @@
 # Installation Guide
-## Installation
 
 For Windows system, we suggest to use the `Anaconda powershell` to run following code.
 
