@@ -25,17 +25,18 @@ Here we provide with a example of the CUDA 11.3 installation code.
 #### If CPU only ####
 conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cpuonly -c pytorch
 conda install -c dglteam dgl
+
 #### If GPU available ####
 conda install -y -c pytorch pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3
 conda install -y -c dglteam dgl-cuda11.3==0.9.1
 ```
 
 ### CAST installation
-If git available:
+If `git` is available:
 ```
 pip install git+ssh://git@github.com/tangzefang/CAST_dev_zefang.git
 ```
-If no git:
+If `git` is unavailable:
 a. Download the package and unpack it
 b. run the code:
 ```
