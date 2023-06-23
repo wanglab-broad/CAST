@@ -3,14 +3,16 @@
 
 For Windows system, we suggest to use the `Anaconda powershell` to run following code.
 
-### 1. [Optional] It is recommended to create a conda environment for CAST.
+### Requirements
+
+1. [Optional] It is recommended to create a conda environment for CAST.
 
 For example, create a new environment named `cast_demo` and activate it.
 ```
 conda create -y -n cast_demo python=3.9
 conda activate cast_demo
 ```
-### 2. [Optional] CAST requires `pytorch` and `dgl`
+2. [Optional] CAST requires `pytorch` and `dgl`
 
 [Install Pytorch](https://pytorch.org/get-started/locally/)
 
@@ -28,7 +30,7 @@ conda install -y -c pytorch pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11
 conda install -y -c dglteam dgl-cuda11.3==0.9.1
 ```
 
-### 3. [Required] CAST package installation
+### CAST installation
 If git available:
 ```
 pip install git+ssh://git@github.com/tangzefang/CAST_dev_zefang.git
