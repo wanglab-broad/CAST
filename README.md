@@ -5,14 +5,14 @@ For Windows system, we suggest to use the `Anaconda powershell` to run following
 
 ### Requirements
 
-1. [Optional] It is recommended to create a conda environment for CAST.
+**[Optional]** It is recommended to create a conda environment for CAST.
 
 For example, create a new environment named `cast_demo` and activate it.
 ```
 conda create -y -n cast_demo python=3.9
 conda activate cast_demo
 ```
-2. [Optional] CAST requires `pytorch` and `dgl`
+**[Optional]** CAST requires `pytorch` and `dgl`
 
 [Install Pytorch](https://pytorch.org/get-started/locally/)
 
