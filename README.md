@@ -33,7 +33,7 @@ conda install -y -c dglteam dgl-cuda11.3==0.9.1
 ## Installation
 If `git` is available:
 ```
-pip install git+ssh://git@github.com/tangzefang/CAST_dev_zefang.git
+pip install git+https://github.com/wanglab-broad/CAST.git
 ```
 If `git` is unavailable:
 
