@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.cluster import KMeans, MiniBatchKMeans
 import os
 
-def kmeans_plot_multiple(embed_dict_t,graph_list,coords,taskname_t,output_path_t,k=20,dot_size = 10,scale_bar_t = None,minibatch = True,plot_strategy = 'sep'):
+def kmeans_plot_multiple(embed_dict_t,graph_list,coords,taskname_t,output_path_t,k=20,dot_size = 10,scale_bar_t = None,minibatch = True,plot_strategy = 'sep',axis_off = False):
     num_plot = len(embed_dict_t)
     plot_row = int(np.floor(num_plot/2) + 1)
     embed_stack = embed_dict_t[graph_list[0]].cpu().detach().numpy()
@@ -33,6 +33,9 @@ def kmeans_plot_multiple(embed_dict_t,graph_list,coords,taskname_t,output_path_t
             plt.xticks(fontsize=20)
             plt.yticks(fontsize=20)
             plt.axis('equal')
+            if axis_off:
+                plt.xticks([])
+                plt.yticks([])
             if (type(scale_bar_t) != type(None)):
                 add_scale_bar(scale_bar_t[0],scale_bar_t[1])
     else:
@@ -51,6 +54,9 @@ def kmeans_plot_multiple(embed_dict_t,graph_list,coords,taskname_t,output_path_t
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
         plt.axis('equal')
+        if axis_off:
+            plt.xticks([])
+            plt.yticks([])
         plt.title('K means (k = ' + str(k) + ')',fontsize=30)      
         if (type(scale_bar_t) != type(None)):
             add_scale_bar(scale_bar_t[0],scale_bar_t[1])  
@@ -66,7 +72,7 @@ def add_scale_bar(length_t,label_t):
                         size_vertical=0.1, color='black',fontproperties = fontprops)
     plt.gca().add_artist(bar)
 
-def plot_mid(coords_q,coords_r,output_path='',filename = None,title_t = ['ref','query'],s_t = 8,scale_bar_t = None):
+def plot_mid(coords_q,coords_r,output_path='',filename = None,title_t = ['ref','query'],s_t = 8,scale_bar_t = None,axis_off = False):
     plt.rcParams.update({'font.size' : 30,'axes.titlesize' : 30,'pdf.fonttype':42,'legend.markerscale' : 5})
     plt.figure(figsize=[10,12])
     plt.scatter(np.array(coords_r)[:,0].tolist(),
@@ -77,6 +83,9 @@ def plot_mid(coords_q,coords_r,output_path='',filename = None,title_t = ['ref','
         c='#E66665',label = title_t[1])
     plt.legend(fontsize=15)
     plt.axis('equal')
+    if axis_off:
+        plt.xticks([])
+        plt.yticks([])
     if (type(scale_bar_t) != type(None)):
         add_scale_bar(scale_bar_t[0],scale_bar_t[1])
     if (filename != None):
