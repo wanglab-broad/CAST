@@ -53,11 +53,14 @@ def CAST_MARK(coords_raw_t,exp_dict_t,output_path_t,task_name_t = None,gpu_t = N
     print(f'The embedding, log, model files were saved to {output_path_t}')
     return embed_dict
 
-def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tmp1_f1_idx = None, mid_visual = False, sub_node_idxs = None):
+def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tmp1_f1_idx = None, mid_visual = False, sub_node_idxs = None, rescale = False):
     ### setting parameters
     query_sample = graph_list[0]
     ref_sample = graph_list[1]
     prefix_t = f'{query_sample}_align_to_{ref_sample}'
+    result_log = dict()
+    coords_raw, result_log['ref_rescale_factor'] = rescale_coords(coords_raw,graph_list,rescale = rescale)
+
     if sub_node_idxs is None:
         sub_node_idxs = {
             query_sample: np.ones(coords_raw[query_sample].shape[0],dtype=bool),
@@ -82,7 +85,6 @@ def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tm
                                     mesh_weight = [None])
         params_dist.alpha_basis = torch.Tensor([1/1000,1/1000,1/50,5,5]).reshape(5,1).to(params_dist.device)
     round_t = 0
-    result_log = dict()
     plt.rcParams.update({'pdf.fonttype':42})
     plt.rcParams['axes.grid'] = False
 
@@ -101,7 +103,7 @@ def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tm
     coords_ref = torch.Tensor(coords_minus_mean(coords_raw[ref_sample])).to(params_dist.device)
 
     ### Pre-location
-    theta_r1_t = prelocate(coords_query,coords_ref,max_minus_value_t(corr_q_r),params_dist.bleeding,output_path,d_list=params_dist.d_list,prefix = prefix_t,index_list=list(sub_node_idxs.values()),translation_params = params_dist.translation_params)
+    theta_r1_t = prelocate(coords_query,coords_ref,max_minus_value_t(corr_q_r),params_dist.bleeding,output_path,d_list=params_dist.d_list,prefix = prefix_t,index_list=list(sub_node_idxs.values()),translation_params = params_dist.translation_params,mirror_t=params_dist.mirror_t)
     params_dist.theta_r1 = theta_r1_t
     coords_query_r1 = affine_trans_t(params_dist.theta_r1,coords_query)
     plot_mid(coords_query_r1.cpu(),coords_ref.cpu(),output_path,prefix_t + '_prelocation') if mid_visual else None ### consistent scale with ref coords

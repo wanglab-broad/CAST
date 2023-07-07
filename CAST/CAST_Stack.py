@@ -18,6 +18,7 @@ class reg_params:
     theta_r2 : float = 0
     d_list : list[float] = field(default_factory=list)
     translation_params : list[float] = None
+    mirror_t : list[float] = None
     alpha_basis : list[float] = field(default_factory=list)
     iterations : int = 50
     dist_penalty1 : float = 0
@@ -43,7 +44,6 @@ class reg_params:
     gpu: int = 0
     device : str = field(init=False)
     
-
     def __post_init__(self):
         if self.gpu != -1 and torch.cuda.is_available():
             self.device = 'cuda:{}'.format(self.gpu)
@@ -55,9 +55,10 @@ def get_range(sp_coords):
     xrng = max(sp_coords, key=lambda x:x[0])[0] - min(sp_coords, key=lambda x:x[0])[0]
     return xrng, yrng
 
-def prelocate(coords_q,coords_r,cov_anchor_it,bleeding,output_path,d_list=[1,2,3],prefix = 'test',ifplot = True,index_list = None,translation_params = None):
+def prelocate(coords_q,coords_r,cov_anchor_it,bleeding,output_path,d_list=[1,2,3],prefix = 'test',ifplot = True,index_list = None,translation_params = None,mirror_t = None):
     idx_q = np.ones(coords_q.shape[0],dtype=bool) if index_list is None else index_list[0]
     idx_r = np.ones(coords_r.shape[0],dtype=bool) if index_list is None else index_list[1]
+    mirror_t = [1,-1] if mirror_t is None else mirror_t
     theta_t = []
     J_t = []
     if translation_params is None:
@@ -70,7 +71,7 @@ def prelocate(coords_q,coords_r,cov_anchor_it,bleeding,output_path,d_list=[1,2,3
         dy_max = dy_ratio_max * yrng
         translation_x = np.linspace(-dx_max, dx_max, num=int(xy_steps)) # dx
         translation_y = np.linspace(-dy_max, dy_max, num=int(xy_steps)) # dy
-    for mirror in [1,-1]:
+    for mirror in mirror_t:
         for dx in translation_x:
             for dy in translation_y:
                 for d in d_list:
@@ -79,8 +80,11 @@ def prelocate(coords_q,coords_r,cov_anchor_it,bleeding,output_path,d_list=[1,2,3
                         d = d * mirror
                         theta = torch.Tensor([a,d,phi,dx,dy]).reshape(5,1).to(coords_q.device)
                         coords_query_it = affine_trans_t(theta,coords_q)
+                        try:
+                            J_t.append(J_cal(coords_query_it[idx_q],coords_r[idx_r],cov_anchor_it,bleeding).sum().item())
+                        except:
+                            continue
                         theta_t.append(theta)
-                        J_t.append(J_cal(coords_query_it[idx_q],coords_r[idx_r],cov_anchor_it,bleeding).sum().item())
     if ifplot:
         prelocate_loss_plot(J_t,output_path,prefix)
     return(theta_t[np.argmin(J_t)])
@@ -184,7 +188,6 @@ def BSpline_GD(coords_q,coords_r,cov_anchor_it,iterations,output_path,bleeding, 
     plt.yticks(fontsize=20)
     plt.legend(fontsize=15)
     plt.axis('equal')
-    add_scale_bar(200,'200 µm')
     plt.subplot(1,2,2)
     titles = 'loss = ' + format(similarity_score[-1],'.1f')
     plt.scatter(list(range(0,len(similarity_score))),similarity_score,s = 5)
@@ -407,6 +410,16 @@ def FFD_Bspline_apply_t(coords_q,params_dist,round_t = 0):
         coords_query_it = result_tt.T
     return coords_query_it
 
+def rescale_coords(coords_raw,graph_list,rescale = False):
+    rescale_factor = 1
+    if rescale:
+        for sample_t in graph_list:
+            rescale_factor_t = 22340 / np.abs(coords_raw[sample_t]).max()
+            coords_raw[sample_t] = coords_raw[sample_t].copy() * rescale_factor_t
+            if sample_t == graph_list[1]:
+                rescale_factor = rescale_factor_t
+    return coords_raw,rescale_factor
+
 #################### Visualization ####################
 
 def mesh_plot(mesh_t,coords_q_t,mesh_trans_t = None):
@@ -570,7 +583,6 @@ def region_detect(embed_dict_t,coords0,k = 20):
     plt.figure(figsize=((20,5 * plot_row)))
     plt.subplot(plot_row,4,1)
     cell_label_idx = 0
-    # coords0 = coords_raw[query_t]
     col=coords0[:,0].tolist()
     row=coords0[:,1].tolist()
     cell_type_t = cell_label[cell_label_idx:(cell_label_idx + coords0.shape[0])]

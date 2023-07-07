@@ -139,7 +139,6 @@ def physical_dist_priority_project(feat_target, feat_source, coords_target, coor
         cosine_knn_cdist = np.zeros_like(cosine_knn_ind).astype(float)
         cosine_knn_physical_dist = np.zeros_like(cosine_knn_ind).astype(float)
         
-        #print('The number of cells which do not have k2 cells for filter: ' + str(np.logical_not(idx_lessk2).sum()) + '/' + str(chunk_cdist.shape[0]))
         idx_narrow = np.where(idx_lessk2)[0]
         idx_narrow_reverse = np.where(np.logical_not(idx_lessk2))[0]
 

@@ -133,6 +133,13 @@ def Harmony_integration(
 def sub_node_sum(coords_t,exp_t,nodenum=1000,vis = True,seed_t = 2):
     from scipy.sparse import csr_matrix as csr
     random.seed(seed_t)
+    if nodenum > coords_t.shape[0]:
+        print('The number of nodes is larger than the total number of nodes. Return the original data.')
+        sub_node_idx = np.arange(coords_t.shape[0])
+        if scipy.sparse.issparse(exp_t):
+            return exp_t,sub_node_idx
+        else:
+            return csr(exp_t),sub_node_idx
     sub_node_idx = np.sort(random.sample(range(coords_t.shape[0]),nodenum))
     coords_t_sub = coords_t[sub_node_idx,:].copy()
     close_idx = nearest_neighbors_idx(coords_t_sub,coords_t)
