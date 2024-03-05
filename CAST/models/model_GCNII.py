@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 # import torch.nn.functional as F
 from dataclasses import dataclass, field
-from dgl.nn import GCN2Conv
+from dgl.nn import GCN2Conv, GraphConv
 
 @dataclass
 class Args:
@@ -65,8 +65,7 @@ class GCNII(nn.Module):
 
         for i in range(n_layers):
             self.convs.append(GCN2Conv(self.hid_dim, i + 1, alpha=self.alpha[i], lambda_=self.lambda_[i], activation=None))
-        
-
+    
     def forward(self, graph, x):
         if self.use_encoder:
             x = self.encoder(x)
@@ -77,10 +76,43 @@ class GCNII(nn.Module):
             # print('GCNII layer', i + 1, 'is_nan', torch.any(torch.isnan(x)))
         return x
 
-class CCA_SSG(nn.Module):
-    def __init__(self, in_dim, encoder_dim, n_layers, alpha=None, lambda_=None, use_encoder=False):
+
+    
+class GCN(nn.Module):
+    def __init__(self, in_dim : int, encoder_dim: int, n_layers : int, use_encoder=False):
         super().__init__()
-        self.backbone = GCNII(in_dim, encoder_dim, n_layers, alpha, lambda_, use_encoder)
+
+        self.n_layers = n_layers
+        self.use_encoder = use_encoder
+
+        if self.use_encoder:
+            self.encoder = Encoder(in_dim, encoder_dim)
+            self.hid_dim = encoder_dim
+        else: self.hid_dim = in_dim
+        self.relu = nn.ReLU()
+        self.convs = nn.ModuleList()
+
+        for i in range(n_layers):
+            self.convs.append(GraphConv(self.hid_dim, self.hid_dim, activation=None))
+
+    def forward(self, graph, x):
+        if self.use_encoder:
+            x = self.encoder(x)
+        # print('GCN forward: after encoder', torch.any(torch.isnan(x)))
+        for i in range(self.n_layers):
+            x = self.relu(self.convs[i](graph, x))
+            # print('GCN layer', i + 1, 'is_nan', torch.any(torch.isnan(x)))
+        return x        
+
+
+
+class CCA_SSG(nn.Module):
+    def __init__(self, in_dim, encoder_dim, n_layers, backbone='GCNII', alpha=None, lambda_=None, use_encoder=False):
+        super().__init__()
+        if backbone == 'GCNII':
+            self.backbone = GCNII(in_dim, encoder_dim, n_layers, alpha, lambda_, use_encoder)
+        elif backbone == 'GCN':
+            self.backbone = GCN(in_dim, encoder_dim, n_layers, use_encoder)
 
     def get_embedding(self, graph, feat):
         out = self.backbone(graph, feat)

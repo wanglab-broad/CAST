@@ -30,6 +30,8 @@ def space_project(
     batch_t = '',
     alignment_shift_adjustment = 50,
     color_dict = None,
+    adjust_shift = False,
+    metric_t = 'cosine',
     working_memory_t = 1000
     ):
     sdata_ref = sdata_inte[idx_target,:].copy()
@@ -47,14 +49,21 @@ def space_project(
             idx_ctype_t = np.isin(sdata_inte[idx_target].obs[source_sample_ctype_col],ctype_t)
             ave_dist_t,_,_,_ = average_dist(coords_target[idx_ctype_t,:].copy(),working_memory_t=working_memory_t)
             dist_thres = ave_dist_fold * ave_dist_t + alignment_shift_adjustment
+            if adjust_shift:
+                coords_shift = group_shift(target_cell_pc_feature[idx_ctype_t,:], source_cell_pc_feature, coords_target[idx_ctype_t,:], coords_source, working_memory_t = working_memory_t, metric_t = metric_t)
+                coords_source_t = coords_source + coords_shift
+                print(coords_shift)
+            else:
+                coords_source_t = coords_source.copy()
             project_ind[idx_ctype_t,:],project_weight[idx_ctype_t,:],cdists[idx_ctype_t,:],physical_dist[idx_ctype_t,:],all_avg_feat[idx_ctype_t,:] = physical_dist_priority_project(
                 feat_target = target_cell_pc_feature[idx_ctype_t,:],
                 feat_source = source_cell_pc_feature,
                 coords_target = coords_target[idx_ctype_t,:],
-                coords_source = coords_source,
+                coords_source = coords_source_t,
                 source_feat = source_feat,
                 k2 = 1,
                 pdist_thres = dist_thres,
+                metric_t = metric_t,
                 working_memory_t = working_memory_t)
     else:
         ave_dist_t,_,_,_ = average_dist(coords_target.copy(),working_memory_t=working_memory_t,strategy_t='delaunay')
@@ -128,7 +137,22 @@ def average_dist(coords,quantile_t = 0.99,working_memory_t = 1000,strategy_t = '
         result_t = np.mean(dists.flatten())
         return result_t,'','',''
 
-def physical_dist_priority_project(feat_target, feat_source, coords_target, coords_source, source_feat = None, k2 = 1, k_extend = 20, pdist_thres = 200, working_memory_t = 1000):
+def group_shift(feat_target, feat_source, coords_target_t, coords_source_t, working_memory_t = 1000, pencentile_t = 0.8, metric_t = 'cosine'):
+    from sklearn.metrics import pairwise_distances_chunked
+    print(f'Using {metric_t} distance to calculate group shift:')
+    feat_similarity_ctype = np.vstack(list(pairwise_distances_chunked(feat_target, feat_source, metric=metric_t, n_jobs=-1, working_memory=working_memory_t)))
+    num_anchor = int(feat_similarity_ctype.shape[0] * pencentile_t)
+    anchor_rank = np.argpartition(feat_similarity_ctype, num_anchor - 1, axis=-1)[:,:num_anchor]
+    anchors = []
+    for i in range(num_anchor):
+        anchors.extend(anchor_rank[:,i].tolist())
+        anchors = list(set(anchors))
+        if len(anchors) >= num_anchor:
+            break
+    coords_shift = np.median(coords_target_t,axis=0) - np.median(coords_source_t[np.array(anchors),:],axis=0)
+    return coords_shift
+
+def physical_dist_priority_project(feat_target, feat_source, coords_target, coords_source, source_feat = None, k2 = 1, k_extend = 20, pdist_thres = 200, working_memory_t = 1000, metric_t = 'cosine'):
     def reduce_func_cdist_priority(chunk_cdist, start):
         chunk_pdist = pairwise_distances(coords_target[start:(chunk_cdist.shape[0] + start),:],coords_source, metric='euclidean', n_jobs=-1)
         idx_pdist_t = chunk_pdist < pdist_thres
@@ -161,8 +185,9 @@ def physical_dist_priority_project(feat_target, feat_source, coords_target, coor
                 cosine_knn_cdist[[i],:] = cdist_cosine
                 cosine_knn_physical_dist[[i],:] = chunk_pdist[i,knn_ind_t]
         return cosine_knn_ind,cosine_knn_weight,cosine_knn_cdist,cosine_knn_physical_dist
-        
-    dists = pairwise_distances_chunked(feat_target, feat_source, metric='cosine', n_jobs=-1,working_memory = working_memory_t,reduce_func=reduce_func_cdist_priority)
+    
+    print(f'Using {metric_t} distance to calculate cell low dimensional distance:')
+    dists = pairwise_distances_chunked(feat_target, feat_source, metric=metric_t, n_jobs=-1,working_memory = working_memory_t,reduce_func=reduce_func_cdist_priority)
     cosine_knn_inds = []
     cosine_k2nn_weights = []
     cosine_k2nn_cdists = []
