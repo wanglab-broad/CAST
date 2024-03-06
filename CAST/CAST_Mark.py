@@ -6,6 +6,7 @@ from .models.aug import random_aug
 from .utils import coords2adjacentmat
 from timeit import default_timer as timer
 from collections import OrderedDict
+from tqdm import trange
 
 def train_seq(graphs, args, dump_epoch_list, out_prefix, model):
     """The CAST MARK training function
@@ -26,8 +27,9 @@ def train_seq(graphs, args, dump_epoch_list, out_prefix, model):
 
     loss_log = []
     time_now = timer()
-
-    for epoch in range(args.epochs):
+    
+    t = trange(args.epochs, desc='', leave=True)
+    for epoch in t:
 
         with torch.no_grad():
             if epoch in dump_epoch_list:
@@ -44,7 +46,7 @@ def train_seq(graphs, args, dump_epoch_list, out_prefix, model):
         losses = dict()
         model.train()
         optimizer.zero_grad()
-        print(f'Epoch: {epoch}')
+        # print(f'Epoch: {epoch}')
 
         for name_, graph_, feat_ in graphs:
             with torch.no_grad():
@@ -77,7 +79,9 @@ def train_seq(graphs, args, dump_epoch_list, out_prefix, model):
         loss_log.append(loss.item())
         time_step = timer() - time_now
         time_now += time_step
-        print(f'Loss: {loss.item()} step time={time_step:.3f}s')
+        # print(f'Loss: {loss.item()} step time={time_step:.3f}s')
+        t.set_description(f'Loss: {loss.item():.3f} step time={time_step:.3f}s')
+        t.refresh()
     
     model.eval()
     with torch.no_grad():
