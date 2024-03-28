@@ -22,11 +22,11 @@ Users could use `nvcc --version` to check the CUDA version for installation.
 Here we provide with an example of the CUDA `11.3` installation code.
 ```
 #### If CPU only ####
-conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cpuonly -c pytorch
+conda install pytorch==1.11.0 cpuonly -c pytorch
 conda install -c dglteam dgl
 
 #### If GPU available ####
-conda install -y -c pytorch pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3
+conda install -y -c pytorch pytorch==1.11.0 cudatoolkit=11.3
 conda install -y -c dglteam dgl-cuda11.3==0.9.1
 ```
 
