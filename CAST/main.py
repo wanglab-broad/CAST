@@ -53,7 +53,7 @@ def CAST_MARK(coords_raw_t,exp_dict_t,output_path_t,task_name_t = None,gpu_t = N
     print(f'The embedding, log, model files were saved to {output_path_t}')
     return embed_dict
 
-def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tmp1_f1_idx = None, mid_visual = False, sub_node_idxs = None, rescale = False, corr_q_r = None, if_embed_sub = False, early_stop_thres = None):
+def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tmp1_f1_idx = None, mid_visual = False, sub_node_idxs = None, rescale = False, corr_q_r = None, if_embed_sub = False, early_stop_thres = None, renew_mesh_trans = True):
     ### setting parameters
     query_sample = graph_list[0]
     ref_sample = graph_list[1]
@@ -183,14 +183,18 @@ def CAST_STACK(coords_raw,embed_dict,output_path,graph_list,params_dist= None,tm
                         coords_log = True,
                         index_list=[sub_node_idxs[k_t] for k_t in graph_list],
                         mid_visual = mid_visual,
-                        max_xy = params_dist.img_size_bs[round_t])
+                        max_xy = params_dist.img_size_bs[round_t],
+                        renew_mesh_trans = renew_mesh_trans)
 
         # B-Spline FFD results
         register_result(t1[0].cpu().numpy(),(coords_ref - params_dist.min_qr2[round_t]).cpu().numpy(),max_minus_value_t(corr_q_r).cpu(),params_dist.bleeding,embed_stack_t,output_path,k=20,prefix=prefix_t+ '_' + str(round_t) +'_BSpine_' + str(params_dist.iterations_bs[round_t]),index_list=[sub_node_idxs[k_t] for k_t in graph_list])# if mid_visual else None
         # register_result(t1[0].cpu().numpy(),(coords_ref - coords_query_r2.min(0)[0]).cpu().numpy(),max_minus_value_t(corr_q_r).cpu(),params_dist.bleeding,embed_stack_t,output_path,k=20,prefix=prefix_t+ '_' + str(round_t) +'_BSpine_' + str(params_dist.iterations_bs[round_t]),index_list=[sub_node_idxs[k_t] for k_t in graph_list])# if mid_visual else None
         result_log['BS_coords_log1'] = t1[4]
         result_log['BS_J1'] = t1[3]
-        setattr(params_dist,'mesh_trans_list',[t1[1]])
+        if renew_mesh_trans:
+            setattr(params_dist,'mesh_trans_list',[t1[1]])
+        else:
+            setattr(params_dist,'mesh_trans_list',[[t1[1][-1]]])
 
     ### Save results
     torch.save(params_dist,os.path.join(output_path,f'{prefix_t}_params.data'))

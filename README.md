@@ -1,3 +1,8 @@
+# Introduction
+**CAST** is a Python library for physically aligning different spatial transcriptome regardless of technologies, magnification, individual variation, and experimental batch effects.
+CAST is composed of three modules: CAST Mark, CAST Stack, and CAST Projection.
+![CAST Diagram](./README_CAST_diagram.png)
+
 # Installation Guide
 
 For Windows system, we suggest to use the `Anaconda powershell` to run following code.
@@ -73,3 +78,7 @@ Users should first replace `$demo_path` with the CAST demo Path in the first cel
 In this demo, CAST_projectiong will project one sample to another one.
 
 Users should first replace `$demo_path` with the CAST demo Path in the first cell.
+
+## More demos
+We also updated more demos in the [tutorial pages](https://cast-tutorial.readthedocs.io/en/latest/).
+

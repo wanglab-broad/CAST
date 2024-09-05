@@ -142,7 +142,7 @@ def Affine_GD(coords_query_it_raw,coords_ref_it,cov_anchor_it,output_path,bleedi
                 break
     return([similarity_score,it_J,it_theta,coords_q_log])
 
-def BSpline_GD(coords_q,coords_r,cov_anchor_it,iterations,output_path,bleeding, dist_penalty = 0, alpha_basis = 1000,diff_step = 50,mesh_size = 5,prefix = 'test',mesh_weight = None,attention_params = [None,3,1,0],scale_t = 1,coords_log = False, index_list = None, mid_visual = False,max_xy = None):
+def BSpline_GD(coords_q,coords_r,cov_anchor_it,iterations,output_path,bleeding, dist_penalty = 0, alpha_basis = 1000,diff_step = 50,mesh_size = 5,prefix = 'test',mesh_weight = None,attention_params = [None,3,1,0],scale_t = 1,coords_log = False, index_list = None, mid_visual = False,max_xy = None,renew_mesh_trans = True,restriction_t = 0.5):
     idx_q = np.ones(coords_q.shape[0],dtype=bool) if index_list is None else index_list[0]
     idx_r = np.ones(coords_r.shape[0],dtype=bool) if index_list is None else index_list[1]
     dev = coords_q.device
@@ -155,7 +155,8 @@ def BSpline_GD(coords_q,coords_r,cov_anchor_it,iterations,output_path,bleeding, 
     similarity_score = [J_cal(coords_query_it[idx_q],coords_r[idx_r],cov_anchor_it,bleeding,dist_penalty,attention_params).sum().cpu().item()]
     mesh_trans_list = []
     coords_q_log = []
-    
+    mesh_trans = mesh.clone()
+    max_movement = (max_xy / (mesh_size - 1.) * restriction_t).to(mesh.device).unsqueeze(-1).unsqueeze(-1)
     t = trange(iterations, desc='', leave=True)
     for it in t:
         dJ_dxy_mat = dJ_dt_cal(coords_query_it[idx_q],
@@ -166,15 +167,18 @@ def BSpline_GD(coords_q,coords_r,cov_anchor_it,iterations,output_path,bleeding, 
                 bleeding,
                 dist_penalty,
                 attention_params)
-
-        uv_raw, ij_raw = BSpline_GD_uv_ij_calculate(coords_query_it,delta,dev)
-        uv = uv_raw[:,idx_q] # 2 * N[idx]
-        ij = ij_raw[:,idx_q] # 2 * N[idx]
+        if renew_mesh_trans or it == 0:
+            uv_raw, ij_raw = BSpline_GD_uv_ij_calculate(coords_query_it,delta,dev)
+            uv = uv_raw[:,idx_q] # 2 * N[idx]
+            ij = ij_raw[:,idx_q] # 2 * N[idx]
 
         result_B_t = B_matrix(uv,kls) ## 16 * N[idx]
         dxy_ffd = get_dxy_ffd(ij,result_B_t,mesh,dJ_dxy_mat,mesh_weight,alpha_basis)
-
-        mesh_trans = mesh + dxy_ffd
+        
+        if renew_mesh_trans:
+            mesh_trans = mesh + dxy_ffd
+        else:
+            mesh_trans = mesh + torch.clamp(mesh_trans + dxy_ffd - mesh, min=-max_movement, max=max_movement)
         mesh_trans_list.append(mesh_trans)
         coords_query_it = BSpline_renew_coords(uv_raw,kls,ij_raw,mesh_trans)
         if coords_log:
@@ -476,12 +480,12 @@ def rescale_coords(coords_raw,graph_list,rescale = False):
 #################### Visualization ####################
 
 def mesh_plot(mesh_t,coords_q_t,mesh_trans_t = None):
-    mesh_no_last_row = mesh_t[:, :, :]
+    mesh_no_last_row = mesh_t[:, :, :].numpy()
     plt.figure(figsize=[10,10])
     plt.plot(mesh_no_last_row[0], mesh_no_last_row[1], 'blue')
     plt.plot(mesh_no_last_row.T[..., 0], mesh_no_last_row.T[..., 1], 'blue')
     if(type(mesh_trans_t) is not type(None)):
-        mesh_trans_no_last_row = mesh_trans_t[:, :, :]
+        mesh_trans_no_last_row = mesh_trans_t[:, :, :].numpy()
         plt.plot(mesh_trans_no_last_row[0], mesh_trans_no_last_row[1], 'orange')
         plt.plot(mesh_trans_no_last_row.T[..., 0], mesh_trans_no_last_row.T[..., 1], 'orange')
     plt.scatter(coords_q_t.T[0,:],coords_q_t.T[1,:],c='blue',s = 0.5,alpha=0.5, rasterized=True)
@@ -585,6 +589,7 @@ def register_result(coords_q,coords_r,cov_anchor_t,bleeding,embed_stack,output_p
     add_scale_bar(200,'200 µm')
     plt.subplot(1,2,2)
     plt.scatter(coords_q[0,0],coords_q[0,1],c=[0],cmap = 'vlag',vmin = -1,vmax = 1,s = 15,alpha=0.5)
+    plt.axis('off')
     plt.colorbar()
     plt.savefig(f'{output_path}/{prefix}_Results_3.pdf',dpi = 300)
 
