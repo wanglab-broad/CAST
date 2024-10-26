@@ -52,6 +52,7 @@ pip install -e .
 
 # Demo
 We provide with several demos to demonstrate the functions in CAST package.
+Due to file size restrictions at GitHub, we cannot upload sample datasets associated with the demos. Please kindly find the data at our zenodo archive for the paper: https://zenodo.org/doi/10.5281/zenodo.12215314. This Zenodo repo also contains code and data to reproduce results in the paper.
 
 Users can use following code to open the `Jupyter notebook` (We recommend to use `Chrome` to open the jupyter notebook).
 ```
